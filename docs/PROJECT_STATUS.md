@@ -15,6 +15,8 @@ Backend foundation.
 - GET /health validates database connection with Prisma.
 - Sticker catalog Prisma model and migration created.
 - StickersModule implemented with public catalog endpoints and admin placeholder endpoints.
+- AdminStock Prisma model and migration created.
+- InventoryModule implemented with public storefront endpoints and admin placeholder endpoints.
 - Root package.json configured with workspaces.
 - .gitignore added and env files removed from tracking.
 
@@ -24,7 +26,7 @@ Backend foundation.
 
 ## Next task
 
-Implement admin stock/inventory module.
+Implement public storefront integration with purchase order flow.
 
 ## Blockers
 
@@ -37,6 +39,7 @@ None.
 - Prisma 7 does not use url/directUrl inside schema.prisma.
 - Stock availability = quantity - reservedQuantity.
 - StickerCatalog records possible stickers only; public sale availability still belongs to future AdminStock.
+- AdminStock records administrator-owned sale stock and calculates availableQuantity from quantity - reservedQuantity.
 
 ## Last validation
 
@@ -48,5 +51,10 @@ None.
 - curl http://localhost:3333/health: OK, returned status ok and database connected
 - npm run prisma:validate: OK
 - cd apps/api && npx prisma migrate dev --name sticker_catalog: OK
+- npm run prisma:generate: OK
+- npm run build:api: OK
+- npm run prisma:format: OK
+- npm run prisma:validate: OK
+- cd apps/api && npx prisma migrate dev --name admin_stock: OK
 - npm run prisma:generate: OK
 - npm run build:api: OK

@@ -7,19 +7,46 @@ generator client {
   provider = "prisma-client-js"
 }
 
+enum AdminStockStatus {
+  available
+  reserved
+  unavailable
+  out_of_stock
+
+  @@schema("figurinhas")
+}
+
 model StickerCatalog {
-  id          String   @id @default(uuid()) @db.Uuid
-  code        String   @unique @db.VarChar(50)
-  albumNumber Int      @map("album_number")
-  playerName  String   @map("player_name") @db.VarChar(120)
-  teamName    String   @map("team_name") @db.VarChar(120)
-  category    String   @db.VarChar(80)
-  collection  String   @db.VarChar(120)
-  imageUrl    String?  @map("image_url") @db.Text
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id          String       @id @default(uuid()) @db.Uuid
+  code        String       @unique @db.VarChar(50)
+  albumNumber Int          @map("album_number")
+  playerName  String       @map("player_name") @db.VarChar(120)
+  teamName    String       @map("team_name") @db.VarChar(120)
+  category    String       @db.VarChar(80)
+  collection  String       @db.VarChar(120)
+  imageUrl    String?      @map("image_url") @db.Text
+  isActive    Boolean      @default(true) @map("is_active")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  adminStocks AdminStock[]
 
   @@map("sticker_catalog")
+  @@schema("figurinhas")
+}
+
+model AdminStock {
+  id               String           @id @default(uuid()) @db.Uuid
+  stickerId        String           @map("sticker_id") @db.Uuid
+  sticker          StickerCatalog   @relation(fields: [stickerId], references: [id])
+  quantity         Int              @default(0)
+  reservedQuantity Int              @default(0) @map("reserved_quantity")
+  salePrice        Decimal          @map("sale_price") @db.Decimal(10, 2)
+  isVisible        Boolean          @default(true) @map("is_visible")
+  status           AdminStockStatus @default(available)
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  @@index([stickerId])
+  @@map("admin_stock")
   @@schema("figurinhas")
 }
