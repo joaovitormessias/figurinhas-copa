@@ -1,0 +1,48 @@
+# dependencies
+node_modules/
+.pnpm-store/
+.yarn/
+.yarn-cache/
+
+# env
+.env
+.env.*
+!.env.example
+
+# build outputs
+dist/
+build/
+.next/
+out/
+coverage/
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Prisma
+apps/api/prisma/dev.db
+apps/api/prisma/dev.db-journal
+
+# Vite
+.vite/
+
+# Nest/Node
+apps/api/dist/
+apps/api/coverage/
+
+# React/Vite
+apps/web/dist/
+apps/web/coverage/
+
+# Docker/local
+*.pid
