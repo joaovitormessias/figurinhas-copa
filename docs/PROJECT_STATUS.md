@@ -11,16 +11,18 @@ Backend foundation.
 - Prisma 7 configured with prisma.config.ts.
 - Initial Prisma migration synced.
 - Prisma Client generated.
+- PrismaModule and PrismaService integrated in NestJS backend.
+- GET /health validates database connection with Prisma.
 - Root package.json configured with workspaces.
 - .gitignore added and env files removed from tracking.
 
 ## In progress
 
-- PrismaModule and /health endpoint.
+- None.
 
 ## Next task
 
-Implement PrismaModule, PrismaService and GET /health.
+Implement sticker catalog module.
 
 ## Blockers
 
@@ -38,3 +40,6 @@ None.
 - docker compose up -d: OK
 - npx prisma migrate dev --name init: OK
 - npx prisma generate: OK
+- npm run build:api: OK
+- npm run dev:api: OK
+- curl http://localhost:3333/health: OK, returned status ok and database connected
