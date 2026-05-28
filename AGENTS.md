@@ -11,6 +11,39 @@ This is not a free marketplace between users.
 The public user can only buy stickers from the administrator's public stock.
 Users may offer stickers to sell to the administrator, but those offers are private and visible only to the user who created them and administrators.
 
+## Progress tracking
+
+Codex must use these files to preserve project state:
+
+- `docs/PROJECT_STATUS.md`: current progress, completed tasks, blockers, next task.
+- `docs/DECISIONS.md`: important technical and business decisions that should not be rediscovered.
+
+At the start of every new session:
+1. Read `AGENTS.md`.
+2. Read `docs/PROJECT_STATUS.md`.
+3. Read `docs/DECISIONS.md`.
+4. Summarize the current phase before making changes.
+
+At the end of every implementation task:
+1. Update `docs/PROJECT_STATUS.md`.
+2. Add new important decisions to `docs/DECISIONS.md`, only if necessary.
+3. Do not write long logs.
+4. Do not paste full terminal output.
+5. Keep entries concise and actionable.
+
+Never store secrets, credentials, tokens, `.env` values or private keys in progress files.
+
+## About git
+
+- For each creation or alteration in code you must generate just the commit at the final tasks. Always following this pattern:
+
+```
+type(escope): objective action
+```
+
+- type: what is this commit?
+- escope: where you change?
+- action: what realy change?
 ## Current repository structure
 
 ```txt
