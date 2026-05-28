@@ -1,0 +1,48 @@
+{
+  "name": "figurinhas",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Marketplace de figurinhas da Copa - monorepo com NestJS, React, Prisma e PostgreSQL.",
+  "license": "UNLICENSED",
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "concurrently -n API,WEB -c blue,green \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "npm run start:dev -w apps/api",
+    "dev:web": "npm run dev -w apps/web",
+    "build": "npm run build:api && npm run build:web",
+    "build:api": "npm run build -w apps/api",
+    "build:web": "npm run build -w apps/web",
+    "start:api": "npm run start -w apps/api",
+    "start:api:prod": "npm run start:prod -w apps/api",
+    "preview:web": "npm run preview -w apps/web",
+    "lint": "npm run lint:api && npm run lint:web",
+    "lint:api": "npm run lint -w apps/api",
+    "lint:web": "npm run lint -w apps/web",
+    "test": "npm run test:api",
+    "test:api": "npm run test -w apps/api",
+    "test:api:watch": "npm run test:watch -w apps/api",
+    "test:api:e2e": "npm run test:e2e -w apps/api",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:logs": "docker compose logs -f postgres",
+    "db:ps": "docker compose ps",
+    "prisma:format": "cd apps/api && npx prisma format",
+    "prisma:validate": "cd apps/api && npx prisma validate",
+    "prisma:generate": "cd apps/api && npx prisma generate",
+    "prisma:migrate:dev": "cd apps/api && npx prisma migrate dev",
+    "prisma:migrate:init": "cd apps/api && npx prisma migrate dev --name init",
+    "prisma:studio": "cd apps/api && npx prisma studio",
+    "check": "npm run prisma:validate && npm run build",
+    "clean": "rm -rf node_modules apps/api/node_modules apps/web/node_modules apps/api/dist apps/web/dist"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "engines": {
+    "node": ">=20.11.0",
+    "npm": ">=10.0.0"
+  }
+}
