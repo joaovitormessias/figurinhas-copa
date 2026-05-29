@@ -46,3 +46,5 @@ apps/web/coverage/
 
 # Docker/local
 *.pid
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
