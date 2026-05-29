@@ -1,9 +1,11 @@
 # AGENTS.md
 
 ## Project name
+
 Marketplace de Figurinhas da Copa
 
 ## Purpose
+
 Build a web system for buying and selling World Cup stickers managed by an administrator.
 
 This is not a free marketplace between users.
@@ -19,12 +21,14 @@ Codex must use these files to preserve project state:
 - `docs/DECISIONS.md`: important technical and business decisions that should not be rediscovered.
 
 At the start of every new session:
+
 1. Read `AGENTS.md`.
 2. Read `docs/PROJECT_STATUS.md`.
 3. Read `docs/DECISIONS.md`.
 4. Summarize the current phase before making changes.
 
 At the end of every implementation task:
+
 1. Update `docs/PROJECT_STATUS.md`.
 2. Add new important decisions to `docs/DECISIONS.md`, only if necessary.
 3. Do not write long logs.
@@ -44,6 +48,7 @@ type(escope): objective action
 - type: what is this commit?
 - escope: where you change?
 - action: what realy change?
+
 ## Current repository structure
 
 ```txt
@@ -100,6 +105,7 @@ apps/web/
 ## Main stack
 
 Backend:
+
 - NestJS
 - TypeScript
 - Prisma ORM 7+
@@ -107,6 +113,7 @@ Backend:
 - Docker Compose for local database
 
 Frontend:
+
 - React
 - Vite
 - TypeScript
@@ -114,11 +121,13 @@ Frontend:
 - daisyUI
 
 Database:
+
 - PostgreSQL
 - Local development via Docker Compose
 - Use PostgreSQL schema `figurinhas`
 
 Future deploy:
+
 - Nginx reverse proxy
 - Cloudflare DNS
 - Hostinger/Portainer environment
@@ -192,6 +201,7 @@ VITE_SUPABASE_ANON_KEY=""
 ```
 
 Never expose these in frontend code:
+
 - `DATABASE_URL`
 - `DIRECT_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
@@ -296,20 +306,25 @@ The system has three major concepts that must never be mixed:
 ## User roles
 
 ### Visitor
+
 Can:
+
 - view public storefront;
 - search stickers;
 - view basic sticker details;
 - access login/register.
 
 Cannot:
+
 - create purchase order;
 - create sell offer;
 - reserve stock;
 - access admin panel.
 
 ### Authenticated user
+
 Can:
+
 - create purchase orders for public admin stock;
 - create private sell offers to the administrator;
 - view own purchase orders;
@@ -317,13 +332,16 @@ Can:
 - update own basic profile.
 
 Cannot:
+
 - see offers from other users;
 - edit prices;
 - edit stock;
 - access admin data.
 
 ### Administrator
+
 Can:
+
 - manage sticker catalog;
 - manage admin stock;
 - manage prices;
@@ -336,6 +354,7 @@ Can:
 ## MVP scope
 
 Build only:
+
 - authentication structure or placeholders prepared for authentication;
 - sticker catalog;
 - public storefront;
@@ -348,6 +367,7 @@ Build only:
 - audit logging for critical actions.
 
 Do not build in the MVP:
+
 - online payment;
 - shipping integration;
 - Correios integration;
@@ -362,7 +382,9 @@ Do not build in the MVP:
 ## Core business rules
 
 ### Public storefront
+
 Only show stickers that:
+
 - belong to `AdminStock`;
 - have an active `StickerCatalog` item;
 - are visible;
@@ -370,21 +392,25 @@ Only show stickers that:
 - have `quantity - reservedQuantity > 0`.
 
 ### Catalog is not stock
+
 Do not use `StickerCatalog` as availability.
 
 `StickerCatalog` means the sticker exists.
 `AdminStock` means the administrator has units for sale.
 
 ### User offer is not public inventory
+
 A user offer does not appear publicly.
 Only an administrator may decide to buy it.
 Only after an explicit admin action can it become part of `AdminStock`.
 
 ### Payment
+
 Payment is presencial/manual.
 The system records the intent, approval, completion and delivery, but does not process payment online.
 
 ### WhatsApp
+
 Users must provide a valid WhatsApp/phone number for presencial negotiation.
 Do not implement automatic WhatsApp sending in the MVP.
 
@@ -402,6 +428,7 @@ availableQuantity = quantity - reservedQuantity
 ```
 
 When creating a purchase order:
+
 - validate available stock;
 - create `PurchaseOrder` with status `pending_admin_approval`;
 - create `PurchaseOrderItem` records;
@@ -412,6 +439,7 @@ When creating a purchase order:
 - perform all operations inside a Prisma transaction.
 
 When administrator rejects an order:
+
 - change order status to `rejected`;
 - decrement `AdminStock.reservedQuantity`;
 - mark reservation as `released`;
@@ -419,6 +447,7 @@ When administrator rejects an order:
 - perform all operations inside a Prisma transaction.
 
 When user cancels an order:
+
 - change order status to `cancelled_by_user`;
 - decrement `AdminStock.reservedQuantity`;
 - mark reservation as `released`;
@@ -426,6 +455,7 @@ When user cancels an order:
 - perform all operations inside a Prisma transaction.
 
 When admin cancels an order:
+
 - change order status to `cancelled_by_admin`;
 - decrement `AdminStock.reservedQuantity`;
 - mark reservation as `released`;
@@ -433,6 +463,7 @@ When admin cancels an order:
 - perform all operations inside a Prisma transaction.
 
 When reservation expires:
+
 - change order status to `expired`;
 - decrement `AdminStock.reservedQuantity`;
 - mark reservation as `expired`;
@@ -440,6 +471,7 @@ When reservation expires:
 - perform all operations inside a Prisma transaction.
 
 When administrator completes an order:
+
 - change order status to `completed`;
 - decrement `AdminStock.quantity`;
 - decrement `AdminStock.reservedQuantity`;
@@ -448,6 +480,7 @@ When administrator completes an order:
 - perform all operations inside a Prisma transaction.
 
 Never allow:
+
 - `quantity < 0`;
 - `reservedQuantity < 0`;
 - `reservedQuantity > quantity`;
@@ -579,6 +612,7 @@ AuditLog
 ```
 
 Minimum relation rules:
+
 - `AdminStock` belongs to `StickerCatalog`.
 - `PurchaseOrder` belongs to `UserProfile`.
 - `PurchaseOrderItem` belongs to `PurchaseOrder`.
@@ -588,6 +622,7 @@ Minimum relation rules:
 - `AuditLog` may reference an actor user.
 
 `PurchaseOrderItem` must preserve price snapshots:
+
 - `unitPrice`
 - `subtotal`
 
@@ -616,6 +651,7 @@ Do not start with visual polish before backend rules exist.
 Use NestJS module boundaries.
 
 Expected module names:
+
 - `PrismaModule`
 - `AuthModule`
 - `UsersModule`
@@ -629,6 +665,7 @@ Expected module names:
 Use DTOs for input validation.
 
 Validate:
+
 - required fields;
 - positive quantities;
 - non-negative prices;
@@ -639,6 +676,7 @@ Validate:
 Do not trust frontend input.
 
 Use Prisma transactions for:
+
 - creating purchase orders;
 - reserving stock;
 - completing orders;
@@ -650,12 +688,14 @@ Use Prisma transactions for:
 Prefer explicit services over putting business logic in controllers.
 
 Controllers should:
+
 - receive request;
 - validate DTOs;
 - call services;
 - return response.
 
 Services should:
+
 - enforce business rules;
 - use transactions;
 - call Prisma;
@@ -717,12 +757,14 @@ PATCH /admin/system-config
 The final system may use Supabase Auth or NestJS auth.
 
 Until auth is fully implemented:
+
 - keep guards centralized;
 - use TODOs only in auth boundary files;
 - do not scatter fake user IDs across services;
 - do not build business rules that depend on hardcoded users.
 
 When authentication exists:
+
 - users can only access their own orders and offers;
 - admins can access administrative endpoints;
 - admin-only operations must reject normal users;
@@ -731,6 +773,7 @@ When authentication exists:
 ## Audit logging
 
 Create audit logs for important actions:
+
 - sticker created/updated;
 - stock created/updated;
 - order created;
@@ -742,6 +785,7 @@ Create audit logs for important actions:
 - admin configuration changed.
 
 Audit log should store:
+
 - actor user ID if available;
 - action;
 - entity;
@@ -756,6 +800,7 @@ Use React + Vite + TypeScript.
 Use Tailwind CSS + daisyUI.
 
 The visual style should combine:
+
 - marketplace/catalog density similar to game item marketplaces;
 - colorful collectible-card energy inspired by games;
 - original visual identity, without copying protected assets.
@@ -779,6 +824,7 @@ src/types
 
 Frontend must not decide sensitive business rules.
 Frontend may calculate display-only values, but backend is the source of truth for:
+
 - stock availability;
 - reservation creation;
 - order status transitions;
@@ -788,11 +834,13 @@ Frontend may calculate display-only values, but backend is the source of truth f
 ## UI screens required for MVP
 
 Public:
+
 - storefront/home page;
 - sticker details page;
 - login/register page.
 
 User:
+
 - my orders;
 - order details;
 - sell sticker form;
@@ -800,6 +848,7 @@ User:
 - profile page.
 
 Admin:
+
 - dashboard;
 - catalog management;
 - stock management;
@@ -839,6 +888,7 @@ If tests are added, run them before reporting completion.
 
 Do not claim a task is done if build/validation fails.
 If a command fails, report:
+
 - command executed;
 - error summary;
 - likely cause;
@@ -847,6 +897,7 @@ If a command fails, report:
 ## Development workflow for Codex
 
 Before modifying files:
+
 1. Read this `AGENTS.md`.
 2. Read the relevant docs in `docs/`.
 3. Inspect current code.
@@ -854,6 +905,7 @@ Before modifying files:
 5. Keep the task scope small.
 
 While modifying files:
+
 - avoid broad rewrites;
 - do not rename major folders without explicit approval;
 - do not implement unrelated features;
@@ -863,6 +915,7 @@ While modifying files:
 - preserve existing working behavior.
 
 After modifying files:
+
 1. Summarize files changed.
 2. Explain why the change was made.
 3. List validation commands run.
@@ -876,6 +929,7 @@ Before large Codex tasks, the user should commit the current state.
 Do not create huge multi-feature changes in one step.
 
 Recommended change size:
+
 - one module;
 - one schema adjustment;
 - one endpoint group;
@@ -885,6 +939,7 @@ Recommended change size:
 ## Safety and privacy
 
 This system handles personal data:
+
 - name;
 - email;
 - WhatsApp/phone;
@@ -894,6 +949,7 @@ This system handles personal data:
 Protect this data.
 
 Do not expose:
+
 - other users' offers;
 - hidden stock;
 - internal purchase prices;
@@ -905,6 +961,7 @@ Do not expose:
 ## Known project decisions
 
 Confirmed:
+
 - local development first;
 - deploy later;
 - backend controls business rules;
@@ -918,6 +975,7 @@ Confirmed:
 - public storefront comes from admin stock only.
 
 Still avoid assuming without confirmation:
+
 - final production auth strategy;
 - final deployment container names;
 - final Nginx configuration;
@@ -927,6 +985,7 @@ Still avoid assuming without confirmation:
 ## Definition of done
 
 A task is done only when:
+
 - the implementation matches the relevant docs;
 - code builds;
 - Prisma validates if Prisma was touched;
@@ -934,4 +993,3 @@ A task is done only when:
 - sensitive rules are enforced in backend;
 - no unrelated feature was added;
 - changes are summarized clearly.
-
