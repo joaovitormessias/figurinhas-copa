@@ -17,6 +17,8 @@ Backend foundation.
 - StickersModule implemented with public catalog endpoints and admin placeholder endpoints.
 - AdminStock Prisma model and migration created.
 - InventoryModule implemented with public storefront endpoints and admin placeholder endpoints.
+- PurchaseOrder, PurchaseOrderItem and Reservation Prisma models and migration created.
+- OrdersModule implemented with temporary reservation flow and admin order transitions.
 - Root package.json configured with workspaces.
 - .gitignore added and env files removed from tracking.
 
@@ -26,7 +28,7 @@ Backend foundation.
 
 ## Next task
 
-Implement public storefront integration with purchase order flow.
+Implement private user sell offers.
 
 ## Blockers
 
@@ -40,6 +42,8 @@ None.
 - Stock availability = quantity - reservedQuantity.
 - StickerCatalog records possible stickers only; public sale availability still belongs to future AdminStock.
 - AdminStock records administrator-owned sale stock and calculates availableQuantity from quantity - reservedQuantity.
+- Purchase order creation reserves stock but does not decrement AdminStock.quantity.
+- Completing an approved order decrements quantity and reservedQuantity in the same transaction.
 
 ## Last validation
 
@@ -56,5 +60,10 @@ None.
 - npm run prisma:format: OK
 - npm run prisma:validate: OK
 - cd apps/api && npx prisma migrate dev --name admin_stock: OK
+- npm run prisma:generate: OK
+- npm run build:api: OK
+- npm run prisma:format: OK
+- npm run prisma:validate: OK
+- cd apps/api && npx prisma migrate dev --name purchase_orders_reservations: OK
 - npm run prisma:generate: OK
 - npm run build:api: OK
