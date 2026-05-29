@@ -37,6 +37,27 @@ enum ReservationStatus {
   @@schema("figurinhas")
 }
 
+enum UserOfferStatus {
+  pending
+  under_review
+  accepted
+  rejected
+  cancelled_by_user
+  cancelled_by_admin
+  completed
+
+  @@schema("figurinhas")
+}
+
+enum StickerCondition {
+  new
+  good
+  used
+  damaged
+
+  @@schema("figurinhas")
+}
+
 model StickerCatalog {
   id                 String              @id @default(uuid()) @db.Uuid
   code               String              @unique @db.VarChar(50)
@@ -52,6 +73,7 @@ model StickerCatalog {
   adminStocks        AdminStock[]
   purchaseOrderItems PurchaseOrderItem[]
   reservations       Reservation[]
+  userOffers         UserOffer[]
 
   @@map("sticker_catalog")
   @@schema("figurinhas")
@@ -140,5 +162,32 @@ model Reservation {
   @@index([stickerId])
   @@index([status])
   @@map("reservation")
+  @@schema("figurinhas")
+}
+
+model UserOffer {
+  id                 String           @id @default(uuid()) @db.Uuid
+  userId             String           @map("user_id") @db.Uuid
+  stickerId          String           @map("sticker_id") @db.Uuid
+  sticker            StickerCatalog   @relation(fields: [stickerId], references: [id])
+  quantity           Int
+  condition          StickerCondition
+  suggestedPrice     Decimal?         @map("suggested_price") @db.Decimal(10, 2)
+  systemPrice        Decimal          @default(1.50) @map("system_price") @db.Decimal(10, 2)
+  adminFinalPrice    Decimal?         @map("admin_final_price") @db.Decimal(10, 2)
+  status             UserOfferStatus  @default(pending)
+  userNote           String?          @map("user_note") @db.Text
+  adminNote          String?          @map("admin_note") @db.Text
+  reviewedAt         DateTime?        @map("reviewed_at")
+  completedAt        DateTime?        @map("completed_at")
+  cancelledAt        DateTime?        @map("cancelled_at")
+  cancellationReason String?          @map("cancellation_reason") @db.Text
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([stickerId])
+  @@index([status])
+  @@map("user_offer")
   @@schema("figurinhas")
 }
