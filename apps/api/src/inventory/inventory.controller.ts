@@ -47,6 +47,10 @@ export class InventoryController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: UpdateInventoryVisibilityDto,
   ) {
-    return this.inventoryService.updateVisibility(id, body.isVisible);
+    return this.inventoryService.updateVisibility(
+      id,
+      body.isVisible,
+      body.actorUserId,
+    );
   }
 }

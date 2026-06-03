@@ -10,6 +10,7 @@ import {
   PurchaseOrderStatus,
   ReservationStatus,
 } from '@prisma/client';
+import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 
@@ -40,13 +41,16 @@ type AdminStockWithSticker = Prisma.AdminStockGetPayload<{
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   async createOrderWithReservation(data: CreateOrderDto) {
     const groupedItems = this.groupItems(data.items);
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    return this.prisma.$transaction(async (tx) => {
+    const created = await this.prisma.$transaction(async (tx) => {
       const stockItems: Array<{
         requestedQuantity: number;
         stockItem: AdminStockWithSticker;
@@ -133,6 +137,19 @@ export class OrdersService {
 
       return this.findOrderOrThrow(tx, order.id);
     });
+
+    await this.auditService.logAction({
+      actorUserId: data.userId,
+      action: 'purchase_order.created',
+      entity: 'PurchaseOrder',
+      entityId: created.id,
+      newValue: this.toAuditOrderValue(created),
+      metadata: {
+        reservationExpiresAt: created.expiresAt.toISOString(),
+      },
+    });
+
+    return created;
   }
 
   listMyOrders(userId: string) {
@@ -154,15 +171,15 @@ export class OrdersService {
     return this.findOrderOrThrow(this.prisma, id);
   }
 
-  async approveOrder(id: string, adminNote?: string) {
-    return this.prisma.$transaction(async (tx) => {
+  async approveOrder(id: string, adminNote?: string, actorUserId?: string) {
+    const result = await this.prisma.$transaction(async (tx) => {
       const order = await this.findOrderOrThrow(tx, id);
 
       if (order.status !== PurchaseOrderStatus.pending_admin_approval) {
         throw new BadRequestException('Only pending orders can be approved.');
       }
 
-      return tx.purchaseOrder.update({
+      const updatedOrder = await tx.purchaseOrder.update({
         where: { id },
         data: {
           status: PurchaseOrderStatus.approved,
@@ -171,17 +188,30 @@ export class OrdersService {
         },
         include: orderInclude,
       });
+
+      return { previousOrder: order, updatedOrder };
     });
+
+    await this.auditService.logAction({
+      actorUserId,
+      action: 'purchase_order.approved',
+      entity: 'PurchaseOrder',
+      entityId: result.updatedOrder.id,
+      oldValue: this.toAuditOrderValue(result.previousOrder),
+      newValue: this.toAuditOrderValue(result.updatedOrder),
+    });
+
+    return result.updatedOrder;
   }
 
-  async rejectOrder(id: string, adminNote?: string) {
-    return this.prisma.$transaction(async (tx) => {
+  async rejectOrder(id: string, adminNote?: string, actorUserId?: string) {
+    const result = await this.prisma.$transaction(async (tx) => {
       const order = await this.findOrderOrThrow(tx, id);
       this.ensureOrderCanReleaseReservation(order);
 
       await this.releaseReservation(tx, order, ReservationStatus.released);
 
-      return tx.purchaseOrder.update({
+      const updatedOrder = await tx.purchaseOrder.update({
         where: { id },
         data: {
           status: PurchaseOrderStatus.rejected,
@@ -190,11 +220,24 @@ export class OrdersService {
         },
         include: orderInclude,
       });
+
+      return { previousOrder: order, updatedOrder };
     });
+
+    await this.auditService.logAction({
+      actorUserId,
+      action: 'purchase_order.rejected',
+      entity: 'PurchaseOrder',
+      entityId: result.updatedOrder.id,
+      oldValue: this.toAuditOrderValue(result.previousOrder),
+      newValue: this.toAuditOrderValue(result.updatedOrder),
+    });
+
+    return result.updatedOrder;
   }
 
-  async completeOrder(id: string, adminNote?: string) {
-    return this.prisma.$transaction(async (tx) => {
+  async completeOrder(id: string, adminNote?: string, actorUserId?: string) {
+    const result = await this.prisma.$transaction(async (tx) => {
       const order = await this.findOrderOrThrow(tx, id);
 
       if (order.status !== PurchaseOrderStatus.approved) {
@@ -203,7 +246,7 @@ export class OrdersService {
 
       await this.convertReservationToSale(tx, order);
 
-      return tx.purchaseOrder.update({
+      const updatedOrder = await tx.purchaseOrder.update({
         where: { id },
         data: {
           status: PurchaseOrderStatus.completed,
@@ -212,7 +255,20 @@ export class OrdersService {
         },
         include: orderInclude,
       });
+
+      return { previousOrder: order, updatedOrder };
     });
+
+    await this.auditService.logAction({
+      actorUserId,
+      action: 'purchase_order.completed',
+      entity: 'PurchaseOrder',
+      entityId: result.updatedOrder.id,
+      oldValue: this.toAuditOrderValue(result.previousOrder),
+      newValue: this.toAuditOrderValue(result.updatedOrder),
+    });
+
+    return result.updatedOrder;
   }
 
   async cancelOrderByUser(
@@ -220,7 +276,7 @@ export class OrdersService {
     userId: string,
     cancellationReason?: string,
   ) {
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const order = await this.findOrderOrThrow(tx, id);
 
       if (order.userId !== userId) {
@@ -231,7 +287,7 @@ export class OrdersService {
 
       await this.releaseReservation(tx, order, ReservationStatus.released);
 
-      return tx.purchaseOrder.update({
+      const updatedOrder = await tx.purchaseOrder.update({
         where: { id },
         data: {
           status: PurchaseOrderStatus.cancelled_by_user,
@@ -240,21 +296,35 @@ export class OrdersService {
         },
         include: orderInclude,
       });
+
+      return { previousOrder: order, updatedOrder };
     });
+
+    await this.auditService.logAction({
+      actorUserId: userId,
+      action: 'purchase_order.cancelled_by_user',
+      entity: 'PurchaseOrder',
+      entityId: result.updatedOrder.id,
+      oldValue: this.toAuditOrderValue(result.previousOrder),
+      newValue: this.toAuditOrderValue(result.updatedOrder),
+    });
+
+    return result.updatedOrder;
   }
 
   async cancelOrderByAdmin(
     id: string,
     cancellationReason?: string,
     adminNote?: string,
+    actorUserId?: string,
   ) {
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const order = await this.findOrderOrThrow(tx, id);
       this.ensureOrderCanReleaseReservation(order);
 
       await this.releaseReservation(tx, order, ReservationStatus.released);
 
-      return tx.purchaseOrder.update({
+      const updatedOrder = await tx.purchaseOrder.update({
         where: { id },
         data: {
           status: PurchaseOrderStatus.cancelled_by_admin,
@@ -264,17 +334,30 @@ export class OrdersService {
         },
         include: orderInclude,
       });
+
+      return { previousOrder: order, updatedOrder };
     });
+
+    await this.auditService.logAction({
+      actorUserId,
+      action: 'purchase_order.cancelled_by_admin',
+      entity: 'PurchaseOrder',
+      entityId: result.updatedOrder.id,
+      oldValue: this.toAuditOrderValue(result.previousOrder),
+      newValue: this.toAuditOrderValue(result.updatedOrder),
+    });
+
+    return result.updatedOrder;
   }
 
   async expireOrder(id: string) {
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const order = await this.findOrderOrThrow(tx, id);
       this.ensureOrderCanReleaseReservation(order);
 
       await this.releaseReservation(tx, order, ReservationStatus.expired);
 
-      return tx.purchaseOrder.update({
+      const updatedOrder = await tx.purchaseOrder.update({
         where: { id },
         data: {
           status: PurchaseOrderStatus.expired,
@@ -283,7 +366,19 @@ export class OrdersService {
         },
         include: orderInclude,
       });
+
+      return { previousOrder: order, updatedOrder };
     });
+
+    await this.auditService.logAction({
+      action: 'purchase_order.expired',
+      entity: 'PurchaseOrder',
+      entityId: result.updatedOrder.id,
+      oldValue: this.toAuditOrderValue(result.previousOrder),
+      newValue: this.toAuditOrderValue(result.updatedOrder),
+    });
+
+    return result.updatedOrder;
   }
 
   async releaseReservation(
@@ -454,6 +549,26 @@ export class OrdersService {
     ) {
       throw new BadRequestException('Order reservation was already released.');
     }
+  }
+
+  private toAuditOrderValue(order: OrderWithDetails) {
+    return {
+      userId: order.userId,
+      status: order.status,
+      totalAmount: order.totalAmount.toString(),
+      expiresAt: order.expiresAt.toISOString(),
+      adminDecisionAt: order.adminDecisionAt?.toISOString() ?? null,
+      completedAt: order.completedAt?.toISOString() ?? null,
+      cancelledAt: order.cancelledAt?.toISOString() ?? null,
+      itemCount: order.items.length,
+      reservationStatuses: order.reservations.map((reservation) => ({
+        id: reservation.id,
+        adminStockId: reservation.adminStockId,
+        stickerId: reservation.stickerId,
+        quantity: reservation.quantity,
+        status: reservation.status,
+      })),
+    };
   }
 
   private lockAdminStock(tx: PrismaTransaction, adminStockId: string) {

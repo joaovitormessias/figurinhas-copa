@@ -49,7 +49,11 @@ export class OffersController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: OfferActionDto,
   ) {
-    return this.offersService.markUnderReview(id, body.adminNote);
+    return this.offersService.markUnderReview(
+      id,
+      body.adminNote,
+      body.actorUserId,
+    );
   }
 
   // TODO: Apply admin guard when authentication and authorization are implemented.
@@ -62,6 +66,7 @@ export class OffersController {
       id,
       body.adminFinalPrice,
       body.adminNote,
+      body.actorUserId,
     );
   }
 
@@ -71,7 +76,7 @@ export class OffersController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: OfferActionDto,
   ) {
-    return this.offersService.rejectOffer(id, body.adminNote);
+    return this.offersService.rejectOffer(id, body.adminNote, body.actorUserId);
   }
 
   // TODO: Apply admin guard when authentication and authorization are implemented.
@@ -84,6 +89,7 @@ export class OffersController {
       id,
       body.cancellationReason,
       body.adminNote,
+      body.actorUserId,
     );
   }
 
@@ -97,6 +103,7 @@ export class OffersController {
       id,
       body.adminFinalPrice,
       body.adminNote,
+      body.actorUserId,
     );
   }
 

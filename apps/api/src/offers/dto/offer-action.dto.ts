@@ -1,6 +1,18 @@
-import { IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import {
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 export class OfferActionDto {
+  // TODO: Replace body actorUserId with CurrentUser when authentication is implemented.
+  @IsOptional()
+  @IsUUID()
+  actorUserId?: string;
+
   @IsOptional()
   @IsNumber()
   @Min(0)

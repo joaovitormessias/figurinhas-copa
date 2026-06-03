@@ -21,6 +21,9 @@ Backend foundation.
 - OrdersModule implemented with temporary reservation flow and admin order transitions.
 - UserOffer Prisma model and migration created.
 - OffersModule implemented with private user offer endpoints and admin status transitions.
+- AuditLog Prisma model and migration created.
+- AuditModule implemented with reusable AuditService and admin audit log endpoint.
+- Critical inventory, order and offer actions now create audit logs.
 - Root package.json configured with workspaces.
 - .gitignore added and env files removed from tracking.
 
@@ -30,7 +33,7 @@ Backend foundation.
 
 ## Next task
 
-Implement audit logging for critical actions.
+Implement authentication placeholders/structure and replace temporary actor/user IDs with CurrentUser.
 
 ## Blockers
 
@@ -47,6 +50,7 @@ None.
 - Purchase order creation reserves stock but does not decrement AdminStock.quantity.
 - Completing an approved order decrements quantity and reservedQuantity in the same transaction.
 - UserOffer records private offers only and does not update AdminStock automatically.
+- Audit logs store operational snapshots only; free-text notes, cancellation reasons and secrets are not copied into audit JSON.
 
 ## Last validation
 
@@ -73,5 +77,10 @@ None.
 - npm run prisma:format: OK
 - npm run prisma:validate: OK
 - cd apps/api && npx prisma migrate dev --name user_offers: OK
+- npm run prisma:generate: OK
+- npm run build:api: OK
+- npm run prisma:format: OK
+- npm run prisma:validate: OK
+- cd apps/api && npx prisma migrate dev --name audit_logs: OK
 - npm run prisma:generate: OK
 - npm run build:api: OK

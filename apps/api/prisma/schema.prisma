@@ -191,3 +191,23 @@ model UserOffer {
   @@map("user_offer")
   @@schema("figurinhas")
 }
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  actorUserId String?  @map("actor_user_id") @db.Uuid
+  action      String   @db.VarChar(120)
+  entity      String   @db.VarChar(120)
+  entityId    String?  @map("entity_id") @db.Uuid
+  oldValue    Json?    @map("old_value")
+  newValue    Json?    @map("new_value")
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([actorUserId])
+  @@index([action])
+  @@index([entity])
+  @@index([entityId])
+  @@index([createdAt])
+  @@map("audit_log")
+  @@schema("figurinhas")
+}

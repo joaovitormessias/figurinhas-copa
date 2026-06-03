@@ -10,6 +10,11 @@ import {
 } from 'class-validator';
 
 export class UpdateAdminStockDto {
+  // TODO: Replace body actorUserId with CurrentUser when authentication is implemented.
+  @IsOptional()
+  @IsUUID()
+  actorUserId?: string;
+
   @IsOptional()
   @IsUUID()
   stickerId?: string;

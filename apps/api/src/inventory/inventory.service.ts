@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { AdminStock, AdminStockStatus, Prisma } from '@prisma/client';
+import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAdminStockDto } from './dto/create-admin-stock.dto';
 import { UpdateAdminStockDto } from './dto/update-admin-stock.dto';
@@ -14,7 +15,10 @@ type AdminStockWithSticker = Prisma.AdminStockGetPayload<{
 
 @Injectable()
 export class InventoryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   async listPublic() {
     const stockItems = await this.prisma.adminStock.findMany({
@@ -55,12 +59,9 @@ export class InventoryService {
 
   async create(data: CreateAdminStockDto) {
     await this.ensureStickerExists(data.stickerId);
-    this.ensureValidQuantities(
-      data.quantity,
-      data.reservedQuantity ?? 0,
-    );
+    this.ensureValidQuantities(data.quantity, data.reservedQuantity ?? 0);
 
-    return this.prisma.adminStock.create({
+    const created = await this.prisma.adminStock.create({
       data: {
         stickerId: data.stickerId,
         quantity: data.quantity,
@@ -71,36 +72,69 @@ export class InventoryService {
       },
       include: { sticker: true },
     });
+
+    await this.auditService.logAction({
+      actorUserId: data.actorUserId,
+      action: 'admin_stock.created',
+      entity: 'AdminStock',
+      entityId: created.id,
+      newValue: this.toAuditStockValue(created),
+    });
+
+    return created;
   }
 
   async update(id: string, data: UpdateAdminStockDto) {
     const current = await this.findStockOrThrow(id);
+    const { actorUserId, ...updateData } = data;
 
-    if (data.stickerId) {
-      await this.ensureStickerExists(data.stickerId);
+    if (updateData.stickerId) {
+      await this.ensureStickerExists(updateData.stickerId);
     }
 
-    const nextQuantity = data.quantity ?? current.quantity;
+    const nextQuantity = updateData.quantity ?? current.quantity;
     const nextReservedQuantity =
-      data.reservedQuantity ?? current.reservedQuantity;
+      updateData.reservedQuantity ?? current.reservedQuantity;
 
     this.ensureValidQuantities(nextQuantity, nextReservedQuantity);
 
-    return this.prisma.adminStock.update({
+    const updated = await this.prisma.adminStock.update({
       where: { id },
-      data,
+      data: updateData,
       include: { sticker: true },
     });
+
+    await this.auditService.logAction({
+      actorUserId,
+      action: 'admin_stock.updated',
+      entity: 'AdminStock',
+      entityId: updated.id,
+      oldValue: this.toAuditStockValue(current),
+      newValue: this.toAuditStockValue(updated),
+    });
+
+    return updated;
   }
 
-  async updateVisibility(id: string, isVisible: boolean) {
-    await this.findStockOrThrow(id);
+  async updateVisibility(id: string, isVisible: boolean, actorUserId?: string) {
+    const current = await this.findStockOrThrow(id);
 
-    return this.prisma.adminStock.update({
+    const updated = await this.prisma.adminStock.update({
       where: { id },
       data: { isVisible },
       include: { sticker: true },
     });
+
+    await this.auditService.logAction({
+      actorUserId,
+      action: 'admin_stock.visibility_updated',
+      entity: 'AdminStock',
+      entityId: updated.id,
+      oldValue: this.toAuditStockValue(current),
+      newValue: this.toAuditStockValue(updated),
+    });
+
+    return updated;
   }
 
   private async findStockOrThrow(id: string) {
@@ -144,6 +178,18 @@ export class InventoryService {
 
   private getAvailableQuantity(stockItem: AdminStock) {
     return stockItem.quantity - stockItem.reservedQuantity;
+  }
+
+  private toAuditStockValue(stockItem: AdminStock) {
+    return {
+      stickerId: stockItem.stickerId,
+      quantity: stockItem.quantity,
+      reservedQuantity: stockItem.reservedQuantity,
+      salePrice: stockItem.salePrice.toString(),
+      isVisible: stockItem.isVisible,
+      status: stockItem.status,
+      availableQuantity: this.getAvailableQuantity(stockItem),
+    };
   }
 
   private toPublicResponse(stockItem: AdminStockWithSticker) {

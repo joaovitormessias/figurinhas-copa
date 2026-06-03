@@ -49,7 +49,11 @@ export class OrdersController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: OrderActionDto,
   ) {
-    return this.ordersService.approveOrder(id, body.adminNote);
+    return this.ordersService.approveOrder(
+      id,
+      body.adminNote,
+      body.actorUserId,
+    );
   }
 
   // TODO: Apply admin guard when authentication and authorization are implemented.
@@ -58,7 +62,7 @@ export class OrdersController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: OrderActionDto,
   ) {
-    return this.ordersService.rejectOrder(id, body.adminNote);
+    return this.ordersService.rejectOrder(id, body.adminNote, body.actorUserId);
   }
 
   // TODO: Apply admin guard when authentication and authorization are implemented.
@@ -67,7 +71,11 @@ export class OrdersController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: OrderActionDto,
   ) {
-    return this.ordersService.completeOrder(id, body.adminNote);
+    return this.ordersService.completeOrder(
+      id,
+      body.adminNote,
+      body.actorUserId,
+    );
   }
 
   // TODO: Apply admin guard when authentication and authorization are implemented.
@@ -80,6 +88,7 @@ export class OrdersController {
       id,
       body.cancellationReason,
       body.adminNote,
+      body.actorUserId,
     );
   }
 

@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, UserOfferStatus } from '@prisma/client';
+import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOfferDto } from './dto/create-offer.dto';
 
@@ -18,12 +19,15 @@ type OfferWithSticker = Prisma.UserOfferGetPayload<{
 
 @Injectable()
 export class OffersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   async createOffer(data: CreateOfferDto) {
     await this.ensureStickerExists(data.stickerId);
 
-    return this.prisma.userOffer.create({
+    const created = await this.prisma.userOffer.create({
       data: {
         userId: data.userId,
         stickerId: data.stickerId,
@@ -39,6 +43,16 @@ export class OffersService {
       },
       include: offerInclude,
     });
+
+    await this.auditService.logAction({
+      actorUserId: data.userId,
+      action: 'user_offer.created',
+      entity: 'UserOffer',
+      entityId: created.id,
+      newValue: this.toAuditOfferValue(created),
+    });
+
+    return created;
   }
 
   listMyOffers(userId: string) {
@@ -60,23 +74,39 @@ export class OffersService {
     return this.findOfferOrThrow(id);
   }
 
-  async markUnderReview(id: string, adminNote?: string) {
+  async markUnderReview(id: string, adminNote?: string, actorUserId?: string) {
     const offer = await this.findOfferOrThrow(id);
 
     if (offer.status !== UserOfferStatus.pending) {
       throw new BadRequestException('Only pending offers can move to review.');
     }
 
-    return this.updateOfferStatus(id, UserOfferStatus.under_review, {
-      adminNote,
-      reviewedAt: new Date(),
+    const updated = await this.updateOfferStatus(
+      id,
+      UserOfferStatus.under_review,
+      {
+        adminNote,
+        reviewedAt: new Date(),
+      },
+    );
+
+    await this.auditService.logAction({
+      actorUserId,
+      action: 'user_offer.under_review',
+      entity: 'UserOffer',
+      entityId: updated.id,
+      oldValue: this.toAuditOfferValue(offer),
+      newValue: this.toAuditOfferValue(updated),
     });
+
+    return updated;
   }
 
   async acceptOffer(
     id: string,
     adminFinalPrice?: number,
     adminNote?: string,
+    actorUserId?: string,
   ) {
     const offer = await this.findOfferOrThrow(id);
 
@@ -87,14 +117,25 @@ export class OffersService {
       throw new BadRequestException('Only open offers can be accepted.');
     }
 
-    return this.updateOfferStatus(id, UserOfferStatus.accepted, {
+    const updated = await this.updateOfferStatus(id, UserOfferStatus.accepted, {
       adminFinalPrice: this.toOptionalDecimal(adminFinalPrice),
       adminNote,
       reviewedAt: new Date(),
     });
+
+    await this.auditService.logAction({
+      actorUserId,
+      action: 'user_offer.accepted',
+      entity: 'UserOffer',
+      entityId: updated.id,
+      oldValue: this.toAuditOfferValue(offer),
+      newValue: this.toAuditOfferValue(updated),
+    });
+
+    return updated;
   }
 
-  async rejectOffer(id: string, adminNote?: string) {
+  async rejectOffer(id: string, adminNote?: string, actorUserId?: string) {
     const offer = await this.findOfferOrThrow(id);
 
     if (
@@ -104,31 +145,59 @@ export class OffersService {
       throw new BadRequestException('Only open offers can be rejected.');
     }
 
-    return this.updateOfferStatus(id, UserOfferStatus.rejected, {
+    const updated = await this.updateOfferStatus(id, UserOfferStatus.rejected, {
       adminNote,
       reviewedAt: new Date(),
     });
+
+    await this.auditService.logAction({
+      actorUserId,
+      action: 'user_offer.rejected',
+      entity: 'UserOffer',
+      entityId: updated.id,
+      oldValue: this.toAuditOfferValue(offer),
+      newValue: this.toAuditOfferValue(updated),
+    });
+
+    return updated;
   }
 
   async cancelOfferByAdmin(
     id: string,
     cancellationReason?: string,
     adminNote?: string,
+    actorUserId?: string,
   ) {
     const offer = await this.findOfferOrThrow(id);
     this.ensureOfferCanBeCancelled(offer);
 
-    return this.updateOfferStatus(id, UserOfferStatus.cancelled_by_admin, {
-      adminNote,
-      cancellationReason,
-      cancelledAt: new Date(),
+    const updated = await this.updateOfferStatus(
+      id,
+      UserOfferStatus.cancelled_by_admin,
+      {
+        adminNote,
+        cancellationReason,
+        cancelledAt: new Date(),
+      },
+    );
+
+    await this.auditService.logAction({
+      actorUserId,
+      action: 'user_offer.cancelled_by_admin',
+      entity: 'UserOffer',
+      entityId: updated.id,
+      oldValue: this.toAuditOfferValue(offer),
+      newValue: this.toAuditOfferValue(updated),
     });
+
+    return updated;
   }
 
   async completeOffer(
     id: string,
     adminFinalPrice?: number,
     adminNote?: string,
+    actorUserId?: string,
   ) {
     const offer = await this.findOfferOrThrow(id);
 
@@ -136,11 +205,26 @@ export class OffersService {
       throw new BadRequestException('Only accepted offers can be completed.');
     }
 
-    return this.updateOfferStatus(id, UserOfferStatus.completed, {
-      adminFinalPrice: this.toOptionalDecimal(adminFinalPrice),
-      adminNote,
-      completedAt: new Date(),
+    const updated = await this.updateOfferStatus(
+      id,
+      UserOfferStatus.completed,
+      {
+        adminFinalPrice: this.toOptionalDecimal(adminFinalPrice),
+        adminNote,
+        completedAt: new Date(),
+      },
+    );
+
+    await this.auditService.logAction({
+      actorUserId,
+      action: 'user_offer.completed',
+      entity: 'UserOffer',
+      entityId: updated.id,
+      oldValue: this.toAuditOfferValue(offer),
+      newValue: this.toAuditOfferValue(updated),
     });
+
+    return updated;
   }
 
   async cancelOfferByUser(
@@ -156,10 +240,41 @@ export class OffersService {
 
     this.ensureOfferCanBeCancelled(offer);
 
-    return this.updateOfferStatus(id, UserOfferStatus.cancelled_by_user, {
-      cancellationReason,
-      cancelledAt: new Date(),
+    const updated = await this.updateOfferStatus(
+      id,
+      UserOfferStatus.cancelled_by_user,
+      {
+        cancellationReason,
+        cancelledAt: new Date(),
+      },
+    );
+
+    await this.auditService.logAction({
+      actorUserId: userId,
+      action: 'user_offer.cancelled_by_user',
+      entity: 'UserOffer',
+      entityId: updated.id,
+      oldValue: this.toAuditOfferValue(offer),
+      newValue: this.toAuditOfferValue(updated),
     });
+
+    return updated;
+  }
+
+  private toAuditOfferValue(offer: OfferWithSticker) {
+    return {
+      userId: offer.userId,
+      stickerId: offer.stickerId,
+      quantity: offer.quantity,
+      condition: offer.condition,
+      suggestedPrice: offer.suggestedPrice?.toString() ?? null,
+      systemPrice: offer.systemPrice.toString(),
+      adminFinalPrice: offer.adminFinalPrice?.toString() ?? null,
+      status: offer.status,
+      reviewedAt: offer.reviewedAt?.toISOString() ?? null,
+      completedAt: offer.completedAt?.toISOString() ?? null,
+      cancelledAt: offer.cancelledAt?.toISOString() ?? null,
+    };
   }
 
   private async findOfferOrThrow(id: string) {
